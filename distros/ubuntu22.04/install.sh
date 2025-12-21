@@ -1,6 +1,24 @@
 #!/bin/bash
 set -ex
 
+# =============================================================================
+# HPC Image Installation Script
+# =============================================================================
+# This is the main entry point that maintains FULL BACKWARD COMPATIBILITY
+# with existing pipelines while internally using the new layered architecture.
+#
+# Usage (unchanged from before):
+#   ./install.sh <GPU_TYPE> <SKU>
+#
+# Layered Architecture (for Packer builds):
+#   Layer 1 (Base):     ./install_layer1_base.sh
+#   Layer 2 (HPC):      ./install_layer2_hpc.sh
+#   Layer 3 (GPU+MPI):  ./install_layer3_gpu.sh NVIDIA A100
+#   Finalize:           ./install_finalize.sh
+#
+# This script runs ALL layers sequentially for backward compatibility.
+# =============================================================================
+
 # Check if arguments are passed
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Error: Missing arguments. Please provide both GPU type (NVIDIA/AMD) and SKU."
@@ -17,104 +35,48 @@ if [[ "$#" -gt 0 ]]; then
     fi
 fi
 
-source ../../utils/set_properties.sh
+echo "=========================================="
+echo "HPC Image Full Installation"
+echo "GPU: $GPU, SKU: $SKU"
+echo "=========================================="
 
-# remove packages requiring Ubuntu Pro for security updates
-./remove_unused_packages.sh
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-./install_utils.sh
+# =============================================================================
+# Layer 1: Base OS (utilities, cmake, build tools)
+# =============================================================================
+echo ""
+echo ">>> Running Layer 1: Base OS..."
+./install_layer1_base.sh
 
-# update cmake
-$COMPONENT_DIR/install_cmake.sh
+# =============================================================================
+# Layer 2: HPC Components (Lustre, DOCA, PMIX, AMD/Intel libs, tuning)
+# =============================================================================
+echo ""
+echo ">>> Running Layer 2: HPC Components..."
+./install_layer2_hpc.sh
 
-# install Lustre client
-$COMPONENT_DIR/install_lustre_client.sh
+# =============================================================================
+# Layer 3: GPU + MPI (drivers, NCCL/RCCL, MPI, health checks)
+# =============================================================================
+echo ""
+echo ">>> Running Layer 3: GPU + MPI..."
+./install_layer3_gpu.sh "$GPU" "$SKU"
 
-# install DOCA OFED
-$COMPONENT_DIR/install_doca.sh
+# =============================================================================
+# Finalization: Security scan, cleanup, disable cloud-init
+# =============================================================================
+echo ""
+echo ">>> Running Finalization..."
+./install_finalize.sh
 
-# install PMIX
-$COMPONENT_DIR/install_pmix.sh
-
-# install mpi libraries
-$COMPONENT_DIR/install_mpis.sh
-
-if [ "$GPU" = "NVIDIA" ]; then
-    # install nvidia gpu driver
-    $COMPONENT_DIR/install_nvidiagpudriver.sh
-    
-    # Install NCCL
-    $COMPONENT_DIR/install_nccl.sh
-    
-    # Install NVIDIA docker container
-    $COMPONENT_DIR/install_docker.sh
-
-    # Install DCGM
-    $COMPONENT_DIR/install_dcgm.sh
-fi
-
-if [ "$GPU" = "AMD" ]; then
-    # Set up docker
-    apt-get install -y moby-engine
-    systemctl enable docker
-    systemctl restart docker
-
-    #install rocm software stack
-    $COMPONENT_DIR/install_rocm.sh    
-    #install rccl and rccl-tests
-    $COMPONENT_DIR/install_rccl.sh
-fi
-
-# install AMD libs
-$COMPONENT_DIR/install_amd_libs.sh
-
-# install Intel libraries
-$COMPONENT_DIR/install_intel_libs.sh
-
-# cleanup downloaded tarballs - clear some space
-rm -rf *.tgz *.bz2 *.tbz *.tar.gz *.run *.deb *_offline.sh
-rm -rf /tmp/MLNX_OFED_LINUX* /tmp/*conf*
-rm -rf /var/intel/ /var/cache/*
-rm -Rf -- */
-
-# optimizations
-$COMPONENT_DIR/hpc-tuning.sh
-
-# Install AZNFS Mount Helper
-$COMPONENT_DIR/install_aznfs.sh
-
-# install diagnostic script
-$COMPONENT_DIR/install_hpcdiag.sh
-
-# install monitor tools
-$COMPONENT_DIR/install_monitoring_tools.sh
-
-# install persistent rdma naming
-$COMPONENT_DIR/install_azure_persistent_rdma_naming.sh
-
-# add udev rule
-$COMPONENT_DIR/add-udev-rules.sh
-
-# copy test file
-$COMPONENT_DIR/copy_test_file.sh
-
-# install Azure/NHC Health Checks
-$COMPONENT_DIR/install_health_checks.sh "$GPU"
-
-# disable cloud-init
-$COMPONENT_DIR/disable_cloudinit.sh
-
-# SKU Customization
-$COMPONENT_DIR/setup_sku_customizations.sh
-
-# scan vulnerabilities using Trivy
-$COMPONENT_DIR/trivy_scan.sh
-
-# diable auto kernel updates
-./disable_auto_upgrade.sh
-
-# Disable Predictive Network interface renaming
-./disable_predictive_interface_renaming.sh
+echo ""
+echo "=========================================="
+echo "HPC Image Installation Complete"
+echo "GPU: $GPU, SKU: $SKU"
+echo "=========================================="
 
 # clear history
 # Uncomment the line below if you are running this on a VM
