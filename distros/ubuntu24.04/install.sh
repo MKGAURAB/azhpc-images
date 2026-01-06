@@ -1,6 +1,24 @@
 #!/bin/bash
 set -ex
 
+# =============================================================================
+# HPC Image Installation Script
+# =============================================================================
+# This is the main entry point that maintains FULL BACKWARD COMPATIBILITY
+# with existing pipelines while internally using the new layered architecture.
+#
+# Usage (unchanged from before):
+#   ./install.sh <GPU_TYPE> <SKU>
+#
+# Layered Architecture (for Packer builds):
+#   Layer 1 (Base):     ./install_layer1_base.sh
+#   Layer 2 (HPC):      ./install_layer2_hpc.sh
+#   Layer 3 (GPU+MPI):  ./install_layer3_gpu.sh NVIDIA A100
+#   Finalize:           ./install_finalize.sh
+#
+# This script runs ALL layers sequentially for backward compatibility.
+# =============================================================================
+
 # Check if arguments are passed
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "Error: Missing arguments. Please provide both GPU type (NVIDIA/AMD) and SKU."
@@ -17,126 +35,48 @@ if [[ "$#" -gt 0 ]]; then
     fi
 fi
 
-source ../../utils/set_properties.sh
+echo "=========================================="
+echo "HPC Image Full Installation"
+echo "GPU: $GPU, SKU: $SKU"
+echo "=========================================="
 
-./install_utils.sh
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-if [ "$SKU" != "GB200" ]; then
-    # update cmake
-    $COMPONENT_DIR/install_cmake.sh
+# =============================================================================
+# Layer 1: Base OS (utilities, cmake, build tools)
+# =============================================================================
+echo ""
+echo ">>> Running Layer 1: Base OS..."
+./install_layer1_base.sh
 
-    # install Lustre client
-    # Note that lustre client is supported on GB200 but amlfs does not support latest 6.14 kernel so we temporarily skip it
-    $COMPONENT_DIR/install_lustre_client.sh
-fi
+# =============================================================================
+# Layer 2: HPC Components (Lustre, DOCA, PMIX, AMD/Intel libs, tuning)
+# =============================================================================
+echo ""
+echo ">>> Running Layer 2: HPC Components..."
+./install_layer2_hpc.sh
 
-# install DOCA OFED
-$COMPONENT_DIR/install_doca.sh
+# =============================================================================
+# Layer 3: GPU + MPI (drivers, NCCL/RCCL, MPI, health checks)
+# =============================================================================
+echo ""
+echo ">>> Running Layer 3: GPU + MPI..."
+./install_layer3_gpu.sh "$GPU" "$SKU"
 
-# install PMIX
-$COMPONENT_DIR/install_pmix.sh
+# =============================================================================
+# Finalization: Security scan, cleanup, disable cloud-init
+# =============================================================================
+echo ""
+echo ">>> Running Finalization..."
+./install_finalize.sh
 
-# install mpi libraries
-$COMPONENT_DIR/install_mpis.sh
-
-if [ "$GPU" = "NVIDIA" ]; then
-    # install nvidia gpu driver
-
-    if [ "$SKU" = "GB200" ]; then
-        # For GB200, pass SKU to install the correct driver
-        ./install_nvidiagpudriver_gb200.sh
-
-        # Install NVSHMEM
-        ./install_nvshmem_gb200.sh
-
-        # Install NVLOOM
-        ./install_nvloom_gb200.sh
-
-        # Install NVBandwidth tool
-        $COMPONENT_DIR/install_nvbandwidth_tool.sh
-
-    else
-        $COMPONENT_DIR/install_nvidiagpudriver.sh
-    fi
-    
-    # Install NCCL
-    $COMPONENT_DIR/install_nccl.sh
-    
-    # Install NVIDIA docker container
-    $COMPONENT_DIR/install_docker.sh
-
-    # Install DCGM
-    $COMPONENT_DIR/install_dcgm.sh
-fi
-
-if [ "$GPU" = "AMD" ]; then
-    # Set up docker
-    apt-get install -y moby-engine
-    systemctl enable docker
-    systemctl restart docker
-
-    #install rocm software stack
-    $COMPONENT_DIR/install_rocm.sh    
-    #install rccl and rccl-tests
-    $COMPONENT_DIR/install_rccl.sh
-fi
-
-if [ "$ARCHITECTURE" == "x86_64" ]; then
-
-    # install AMD libs
-    $COMPONENT_DIR/install_amd_libs.sh
-
-    # install Intel libraries
-    $COMPONENT_DIR/install_intel_libs.sh
-fi
-
-# cleanup downloaded tarballs - clear some space
-rm -rf *.tgz *.bz2 *.tbz *.tar.gz *.run *.deb *_offline.sh
-rm -rf /tmp/MLNX_OFED_LINUX* /tmp/*conf*
-rm -rf /var/intel/ /var/cache/*
-rm -Rf -- */
-
-# optimizations
-$COMPONENT_DIR/hpc-tuning.sh
-
-# install persistent rdma naming
-$COMPONENT_DIR/install_azure_persistent_rdma_naming.sh
-
-if [[ "$SKU" != "GB200" ]]; then
-
-    # Install AZNFS Mount Helper
-    $COMPONENT_DIR/install_aznfs.sh
-
-    # install diagnostic script
-    $COMPONENT_DIR/install_hpcdiag.sh
-
-    # install monitor tools
-    $COMPONENT_DIR/install_monitoring_tools.sh
-
-    # install Azure/NHC Health Checks
-    $COMPONENT_DIR/install_health_checks.sh "$GPU"
-fi 
-
-# add udev rule
-$COMPONENT_DIR/add-udev-rules.sh
-
-# copy test file
-$COMPONENT_DIR/copy_test_file.sh
-
-# disable cloud-init
-$COMPONENT_DIR/disable_cloudinit.sh
-
-# SKU Customization
-$COMPONENT_DIR/setup_sku_customizations.sh
-
-# scan vulnerabilities using Trivy
-$COMPONENT_DIR/trivy_scan.sh
-
-# diable auto kernel updates
-./disable_auto_upgrade.sh
-
-# Disable Predictive Network interface renaming
-./disable_predictive_interface_renaming.sh
+echo ""
+echo "=========================================="
+echo "HPC Image Installation Complete"
+echo "GPU: $GPU, SKU: $SKU"
+echo "=========================================="
 
 # clear history
 # Uncomment the line below if you are running this on a VM
