@@ -8,14 +8,14 @@ set -ex
 # It should be run ONLY on the final layer before image capture.
 #
 # Components:
+#   - Cleanup downloaded tarballs and temporary files
 #   - Trivy security vulnerability scan
 #   - Disable cloud-init
 #   - Disable automatic kernel upgrades
 #   - Disable predictive network interface naming
-#   - Cleanup downloaded tarballs and temporary files
 #
 # Usage:
-#   ./install_finalize.sh
+#   ./finalize.sh
 #
 # This script is automatically called by install.sh, or can be called
 # separately in Packer workflows after the final layer is complete.
@@ -66,3 +66,4 @@ if [ -f /opt/azurehpc/component_versions.txt ]; then
     echo "Component Versions:"
     cat /opt/azurehpc/component_versions.txt
 fi
+

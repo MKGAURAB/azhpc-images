@@ -14,7 +14,7 @@ set -ex
 #   Layer 1 (Base):     ./install_layer1_base.sh
 #   Layer 2 (HPC):      ./install_layer2_hpc.sh
 #   Layer 3 (GPU+MPI):  ./install_layer3_gpu.sh NVIDIA A100
-#   Finalize:           ./install_finalize.sh
+#   Finalize:           ./finalize.sh
 #
 # This script runs ALL layers sequentially for backward compatibility.
 # =============================================================================
@@ -44,6 +44,9 @@ echo "=========================================="
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Ensure layer scripts have execute permissions
+chmod +x install_layer1_base.sh install_layer2_hpc.sh install_layer3_gpu.sh finalize.sh 2>/dev/null || true
+
 # =============================================================================
 # Layer 1: Base OS (utilities, cmake, build tools)
 # =============================================================================
@@ -70,7 +73,7 @@ echo ">>> Running Layer 3: GPU + MPI..."
 # =============================================================================
 echo ""
 echo ">>> Running Finalization..."
-./install_finalize.sh
+./finalize.sh
 
 echo ""
 echo "=========================================="
