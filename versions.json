@@ -298,12 +298,12 @@
         "ubuntu22.04": {
             "x86_64":{
                 "driver": {
-                    "version": "13.0",
+                    "version": "13.1",
                     "distribution": "ubuntu2204"
                 },
                 "samples": {
-                    "version": "13.0",
-                    "sha256": "63cc9d5d8280c87df3c1f4e2276234a0f42cc497c52b40dd5bdda2836607db79"
+                    "version": "13.1",
+                    "sha256": "03D7748A773FCD2350C2DE88F2D167252C78EA90A52E229E7EB2A6922E3BA350"
                 }
             }
         },
