@@ -92,12 +92,6 @@ elif [ "$GPU" = "AMD" ]; then
     echo "Installing AMD GPU Stack"
     echo "=========================================="
     
-    # Set up Docker for AMD
-    echo "Installing Docker (AMD)..."
-    tdnf install -y moby-engine moby-cli
-    systemctl enable docker
-    systemctl restart docker
-    
     # Install ROCm software stack
     echo "Installing ROCm..."
     $COMPONENT_DIR/install_rocm.sh

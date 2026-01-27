@@ -112,12 +112,6 @@ if [ "$GPU" = "AMD" ]; then
     echo "=========================================="
     echo "Installing AMD GPU Stack"
     echo "=========================================="
-    
-    # Set up Docker first (required for AMD)
-    echo "Installing Docker..."
-    apt-get install -y moby-engine
-    systemctl enable docker
-    systemctl restart docker
 
     # Install ROCm software stack
     echo "Installing ROCm..."

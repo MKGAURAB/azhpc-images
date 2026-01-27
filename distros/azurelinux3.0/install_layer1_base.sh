@@ -32,6 +32,10 @@ echo "Installing base utilities..."
 echo "Installing CMake..."
 $COMPONENT_DIR/install_cmake.sh
 
+# Install Docker (base runtime only; GPU tooling configured later)
+echo "Installing Docker runtime..."
+$COMPONENT_DIR/install_docker_base.sh
+
 # copy kvp client file
 echo "Copying KVP client..."
 $COMPONENT_DIR/copy_kvp_client.sh

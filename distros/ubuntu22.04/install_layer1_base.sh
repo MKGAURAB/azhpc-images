@@ -36,6 +36,10 @@ echo "Installing base utilities..."
 echo "Installing CMake..."
 $COMPONENT_DIR/install_cmake.sh
 
+# Install Docker (base runtime only; GPU tooling configured later)
+echo "Installing Docker runtime..."
+$COMPONENT_DIR/install_docker_base.sh
+
 echo "========================================="
 echo "Layer 1 Complete: Base OS"
 echo "Disk usage: $(df -h / | tail -1 | awk '{print $3 " / " $2}')"
