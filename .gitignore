@@ -50,3 +50,36 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Packer Plugin HPC
+packer-plugin-hpc/packer-plugin-hpc
+packer-plugin-hpc/packer-plugin-hpc.exe
+packer-plugin-hpc/packer-plugin-hpc_*
+packer-plugin-hpc/test/crash.log
+packer-plugin-hpc/test/*.log
+
+# Packer artifacts
+packer_cache/
+*.box
+manifest.json
+crash.log
+
+# Go build artifacts
+*.test
+coverage.txt
+coverage.html
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
