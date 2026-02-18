@@ -8,268 +8,323 @@ build {
   name    = "hpc_build"
   sources = ["source.azure-arm.hpc"]
   
-  # --------------------------------------------------------------------------
-  # Add ipTags to the temporary public IP (runs on build agent, not VM)
-  # --------------------------------------------------------------------------
-  # This is required for security/S360 related tagging
+  # # --------------------------------------------------------------------------
+  # # Add ipTags to the temporary public IP (runs on build agent, not VM)
+  # # --------------------------------------------------------------------------
+  # # This is required for security/S360 related tagging
+  # provisioner "shell-local" {
+  #   environment_vars = [
+  #     "RG_NAME=${build.TempResourceGroupName}",
+  #     "PIP_NAME=${build.TempPublicIPAddressName}"
+  #   ]
+  #   command = "python scripts/add-ip-tags.py"
+  # }
+  
+  # # --------------------------------------------------------------------------
+  # # Display build configuration
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   inline = [
+  #     "echo '=========================================='",
+  #     "echo 'HPC Image Build Configuration'",
+  #     "echo '=========================================='",
+  #     "echo ''",
+  #     "echo '=== Operating System ==='",
+  #     "echo 'OS Family:               ${var.os_family}'",
+  #     "echo 'Distro Version:           ${var.distro_version}'",
+  #     "echo 'Distribution:            ${local.distribution}'",
+  #     "echo 'Publisher:               ${local.image_publisher}'",
+  #     "echo 'Offer:                   ${local.image_offer}'",
+  #     "echo 'SKU:                     ${local.image_sku}'",
+  #     "echo ''",
+  #     "echo '=== GPU Configuration ==='",
+  #     "echo 'GPU SKU:                 ${local.gpu_sku}'",
+  #     "echo 'GPU Platform:            ${local.gpu_platform}'",
+  #     "echo ''",
+  #     "echo '=== Azure Infrastructure ==='",
+  #     "echo 'VM Size:                 ${local.vm_size}'",
+  #     "echo 'Location:                ${var.azure_location}'",
+  #     "echo ''",
+  #     "echo '=== Image Naming ==='",
+  #     "echo 'Image Name:              ${local.image_name}'",
+  #     "echo 'Timestamp:               ${local.iso_format_start_time}'",
+  #     "echo ''",
+  #     "echo '=== Source Code Info ==='",
+  #     "echo 'azhpc-images Repo:       ${var.azhpc_repo_url}'",
+  #     "echo 'azhpc-images Branch:     ${var.azhpc_branch}'",
+  #     "echo 'azhpc-images Commit:     ${var.azhpc_commit}'",
+  #     "echo ''",
+  #     "echo '=== Output Configuration ==='",
+  #     "echo 'Create VHD:              ${var.create_vhd}'",
+  #     "echo 'VHD Resource Group:      ${var.vhd_resource_group_name}'",
+  #     "echo 'VHD Storage Account:     ${var.vhd_storage_account != "" ? var.vhd_storage_account : "(not set)"}'",
+  #     "echo 'Publish to SIG:          ${var.publish_to_sig}'",
+  #     "echo 'SIG Gallery:             ${var.sig_gallery_name}'",
+  #     "echo 'SIG Resource Group:      ${var.sig_resource_group_name}'",
+  #     "echo 'SIG Image Definition:    ${local.sig_image_definition}'",
+  #     "echo 'SIG Image Version:       ${local.sig_version}'",
+  #     "echo 'SIG Replication Regions: ${join(", ", var.sig_replication_regions)}'",
+  #     "echo ''",
+  #     "echo '=========================================='",
+  #     "echo 'Starting Provisioning...'",
+  #     "echo '=========================================='",
+  #     "echo ''",
+  #   ]
+  # }
+
   provisioner "shell-local" {
-    environment_vars = [
-      "RG_NAME=${build.TempResourceGroupName}",
-      "PIP_NAME=${build.TempPublicIPAddressName}"
-    ]
-    command = "python scripts/add-ip-tags.py"
+    name           = "Tarball local public keys"
+    inline_shebang = var.default_inline_shebang
+    inline         = ["cd ~/.ssh && tar -cf /tmp/packer_pubkeys.tar *.pub 2>/dev/null || tar -cf /tmp/packer_pubkeys.tar --files-from /dev/null"]
   }
-  
-  # --------------------------------------------------------------------------
-  # Display build configuration
-  # --------------------------------------------------------------------------
+
+  provisioner "file" {
+    name        = "Upload public keys tarball"
+    source      = "/tmp/packer_pubkeys.tar"
+    destination = "/tmp/packer_pubkeys.tar"
+    generated   = true
+  }
+
   provisioner "shell" {
-    inline = [
-      "echo '=========================================='",
-      "echo 'HPC Image Build Configuration'",
-      "echo '=========================================='",
-      "echo ''",
-      "echo '=== Operating System ==='",
-      "echo 'OS Family:               ${var.os_family}'",
-      "echo 'OS Version:              ${var.os_version}'",
-      "echo 'Distribution:            ${local.distribution}'",
-      "echo 'Publisher:               ${local.image_publisher}'",
-      "echo 'Offer:                   ${local.image_offer}'",
-      "echo 'SKU:                     ${local.image_sku}'",
-      "echo ''",
-      "echo '=== GPU Configuration ==='",
-      "echo 'GPU Vendor:              ${var.gpu_vendor}'",
-      "echo 'GPU Model:               ${var.gpu_model}'",
-      "echo 'GPU Platform:            ${local.gpu_platform}'",
-      "echo ''",
-      "echo '=== Azure Infrastructure ==='",
-      "echo 'VM Size:                 ${local.vm_size}'",
-      "echo 'Resource Group:          ${var.azure_resource_group}'",
-      "echo 'Location:                ${var.azure_location}'",
-      "echo ''",
-      "echo '=== Image Naming ==='",
-      "echo 'Image Name:              ${local.image_name}'",
-      "echo 'Timestamp:               ${local.timestamp}'",
-      "echo ''",
-      "echo '=== Source Code Info ==='",
-      "echo 'azhpc-images Repo:       ${var.azhpc_repo_url}'",
-      "echo 'azhpc-images Branch:     ${var.azhpc_branch}'",
-      "echo 'azhpc-images Commit:     ${var.azhpc_commit}'",
-      "echo ''",
-      "echo '=== Output Configuration ==='",
-      "echo 'Create VHD:              ${var.create_vhd}'",
-      "echo 'VHD Storage Account:     ${var.vhd_storage_account != "" ? var.vhd_storage_account : "(not set)"}'",
-      "echo 'Publish to SIG:          ${var.publish_to_sig}'",
-      "echo 'SIG Gallery:             ${var.sig_gallery_name}'",
-      "echo 'SIG Resource Group:      ${var.sig_resource_group}'",
-      "echo 'SIG Image Definition:    ${local.sig_image_definition}'",
-      "echo 'SIG Image Version:       ${local.sig_version}'",
-      "echo 'SIG Replication Regions: ${join(", ", var.sig_replication_regions)}'",
-      "echo ''",
-      "echo '=========================================='",
-      "echo 'Starting Provisioning...'",
-      "echo '=========================================='",
-      "echo ''",
+    name           = "Install public keys into authorized_keys"
+    inline_shebang = var.default_inline_shebang
+    inline         = [
+      "mkdir -p ~/.ssh && chmod 700 ~/.ssh",
+      "tar -xf /tmp/packer_pubkeys.tar -C /tmp 2>/dev/null && cat /tmp/*.pub >> ~/.ssh/authorized_keys || true",
+      "if [ -n \"${var.public_key}\" ]; then echo \"${var.public_key}\" >> ~/.ssh/authorized_keys; fi",
+      "chmod 600 ~/.ssh/authorized_keys",
+      "rm -f /tmp/packer_pubkeys.tar /tmp/*.pub",
     ]
   }
-   
-  # --------------------------------------------------------------------------
-  # Prerequisites: Upload mdatp onboarding package (if available)
-  # --------------------------------------------------------------------------
+
+  provisioner "shell-local" {
+    name           = "(1P specific) add ip tags to public IP"
+    inline_shebang = var.default_inline_shebang
+    inline         = [
+      "set -o pipefail",
+      "if [ ${var.enable_first_party_specifics} = false ]; then exit 0; fi",
+      "public_ip_name=$(az network public-ip list -g ${local.azure_resource_group} --query '[0].name' -o tsv)",
+      "az network public-ip update -g ${local.azure_resource_group} -n $public_ip_name --ip-tags FirstPartyUsage=/Unprivileged",
+    ]
+  }
+
+  provisioner "shell-local" {
+    name           = "(1P specific) download mdatp onboarding package"
+    inline_shebang = var.default_inline_shebang
+    inline         = [
+      "if [ ${var.enable_first_party_specifics} = false ]; then exit 0; fi",
+      "az storage blob download -f /tmp/WindowsDefenderATPOnboardingPackage.zip -c atponboardingpackage -n WindowsDefenderATPOnboardingPackage.zip --account-name azhpcstoralt --auth-mode login",
+      "unzip -o /tmp/WindowsDefenderATPOnboardingPackage.zip -d /tmp",
+      "chmod +r /tmp/MicrosoftDefenderATPOnboardingLinuxServer.py"
+    ]
+  }
+
+  provisioner "file" {
+    name        = "(1P specific) upload mdatp onboarding package"
+    source      = "/tmp/MicrosoftDefenderATPOnboardingLinuxServer.py"
+    destination = "/tmp/MicrosoftDefenderATPOnboardingLinuxServer.py"
+    generated   = true
+  }
+
   provisioner "shell" {
-    inline = ["mkdir -p /tmp/mdatp"]
+    name           = "(1P specific) install mdatp with onboarding script"
+    inline_shebang = var.default_inline_shebang
+    inline         = [
+      "set -o pipefail",
+      "if [ ${var.enable_first_party_specifics} = false ]; then exit 0; fi",
+      "wget -qO- https://raw.githubusercontent.com/microsoft/mdatp-xplat/refs/heads/master/linux/installation/mde_installer.sh | sudo bash -s -- --install --onboard /tmp/MicrosoftDefenderATPOnboardingLinuxServer.py --channel prod",
+      "sudo mdatp threat policy set --type potentially_unwanted_application --action off",
+      "rm -f /tmp/MicrosoftDefenderATPOnboardingLinuxServer.py"
+    ]
   }
   
-  dynamic "provisioner" {
-    labels   = ["file"]
-    for_each = var.mdatp_path != "" ? [1] : []
-    content {
-      source      = "${var.mdatp_path}/"
-      destination = "/tmp/mdatp"
-    }
-  }
-  
-  # --------------------------------------------------------------------------
-  # Prerequisites: LTS kernel, package updates, mdatp
-  # --------------------------------------------------------------------------
   provisioner "shell" {
-    script = "scripts/prerequisites.sh"
+    name             = "Install prerequisites (LTS kernel, package updates)"
+    script           = "scripts/prerequisites.sh"
+    execute_command  = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
     environment_vars = [
-      "OS_FAMILY=${var.os_family}",
-      "OS_VERSION=${var.os_version}",
-      "GPU_MODEL=${var.gpu_model}",
-      "INSTALL_MDATP=${var.install_mdatp}",
+      "OS_FAMILY=${local.os_family}",
+      "DISTRO_VERSION=${local.distro_version}",
+      "GPU_SKU=${local.gpu_sku}",
       "GB200_PARTUUID=${var.gb200_partuuid}",
       "AKS_HOST_IMAGE=${var.aks_host_image}",
       "DEBIAN_FRONTEND=noninteractive"
     ]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
   }
   
-  provisioner "shell" {
-    script            = "scripts/prerequisites-reboot.sh"
-    execute_command   = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-    expect_disconnect = true
-  }
+  # provisioner "shell" {
+  #   script            = "scripts/prerequisites-reboot.sh"
+  #   execute_command   = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  #   expect_disconnect = true
+  # }
   
-  provisioner "shell" {
-    pause_before    = "60s"
-    max_retries     = 10
-    script          = "scripts/prerequisites-post-reboot.sh"
-    environment_vars = ["OS_FAMILY=${var.os_family}"]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-  }
-  
-  # --------------------------------------------------------------------------
-  # Upload azhpc-images repository to VM
-  # --------------------------------------------------------------------------
-  provisioner "file" {
-    source      = var.azhpc_path
-    destination = "/tmp/azhpc-images"
-  }
-  
-  provisioner "shell" {
-    script = "scripts/prepare-azhpc-environment.sh"
-    environment_vars = [
-      "AZHPC_SUBMODULE_PATH=/tmp/azhpc-images",
-      "GPU_MODEL=${var.gpu_model}",
-      "AZHPC_COMMIT=${var.azhpc_commit}",
-      "AZHPC_REPO_URL=${var.azhpc_repo_url}",
-      "AZHPC_BRANCH=${var.azhpc_branch}",
-      "AKS_HOST_IMAGE=${var.aks_host_image}"
-    ]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-  }
-  
-  # --------------------------------------------------------------------------
-  # Run monolithic install.sh from azhpc-images
-  # --------------------------------------------------------------------------
-  provisioner "shell" {
-    inline = [
-      "python3 /opt/azhpc-images/packer/scripts/run-install.py --os ${var.os_family} --version ${var.os_version} --gpu ${var.gpu_vendor} --model ${var.gpu_model}${var.aks_host_image ? " --aks" : ""}${var.image_version != "" ? " --image-version ${var.image_version}" : ""}"
-    ]
-    environment_vars = [
-      "DEBIAN_FRONTEND=noninteractive"
-    ]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-  }
+  # provisioner "shell" {
+  #   pause_before    = "60s"
+  #   max_retries     = 10
+  #   script          = "scripts/prerequisites-post-reboot.sh"
+  #   environment_vars = ["OS_FAMILY=${var.os_family}"]
+  #   execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  # }
 
-  # --------------------------------------------------------------------------
-  # Finalization (verify build artifacts)
-  # --------------------------------------------------------------------------
-  provisioner "shell" {
-    inline = [
-      "python3 /opt/azhpc-images/packer/scripts/finalize.py"
-    ]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-  }
+  # # --------------------------------------------------------------------------
+  # # Upload azhpc-images repository to VM
+  # # --------------------------------------------------------------------------
+  # provisioner "file" {
+  #   source      = var.azhpc_path
+  #   destination = "/tmp/azhpc-images"
+  # }
+  
+  # provisioner "shell" {
+  #   script = "scripts/prepare-azhpc-environment.sh"
+  #   environment_vars = [
+  #     "AZHPC_SUBMODULE_PATH=/tmp/azhpc-images",
+  #     "GPU_SKU=${local.gpu_sku}",
+  #     "AZHPC_COMMIT=${var.azhpc_commit}",
+  #     "AZHPC_REPO_URL=${var.azhpc_repo_url}",
+  #     "AZHPC_BRANCH=${var.azhpc_branch}",
+  #     "AKS_HOST_IMAGE=${var.aks_host_image}"
+  #   ]
+  #   execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  # }
+  
+  # # --------------------------------------------------------------------------
+  # # Run monolithic install.sh from azhpc-images
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   inline = [
+  #     "python3 /opt/azhpc-images/packer/scripts/run-install.py --os ${var.os_family} --version ${var.distro_version} --gpu-platform ${local.gpu_platform} --gpu-sku ${local.gpu_sku}${var.aks_host_image ? " --aks" : ""} --image-version ${local.image_version}"
+  #   ]
+  #   environment_vars = [
+  #     "DEBIAN_FRONTEND=noninteractive"
+  #   ]
+  #   execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  # }
 
-  # --------------------------------------------------------------------------
-  # Collect build artifacts (component versions)
-  # --------------------------------------------------------------------------
-  provisioner "shell" {
-    inline = [
-      "mkdir -p /tmp/build-artifacts",
-      "cp /opt/azurehpc/component_versions.txt /tmp/build-artifacts/ 2>/dev/null || echo 'component_versions not found'",
-      "cp /opt/azurehpc/trivy-report-rootfs.json /tmp/build-artifacts/ 2>/dev/null || echo 'trivy-report not found'",
-      "sudo chmod -R 644 /tmp/build-artifacts/* 2>/dev/null || true",
-      "ls -la /tmp/build-artifacts/"
-    ]
-  }
+  # # --------------------------------------------------------------------------
+  # # Finalization (verify build artifacts)
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   inline = [
+  #     "python3 /opt/azhpc-images/packer/scripts/finalize.py"
+  #   ]
+  #   execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  # }
+
+  # # --------------------------------------------------------------------------
+  # # Collect build artifacts (component versions)
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   inline = [
+  #     "mkdir -p /tmp/build-artifacts",
+  #     "cp /opt/azurehpc/component_versions.txt /tmp/build-artifacts/ 2>/dev/null || echo 'component_versions not found'",
+  #     "cp /opt/azurehpc/trivy-report-rootfs.json /tmp/build-artifacts/ 2>/dev/null || echo 'trivy-report not found'",
+  #     "sudo chmod -R 644 /tmp/build-artifacts/* 2>/dev/null || true",
+  #     "ls -la /tmp/build-artifacts/"
+  #   ]
+  # }
   
-  # --------------------------------------------------------------------------
-  # Validation (pre-reboot)
-  # --------------------------------------------------------------------------
-  provisioner "shell" {
-    inline = [
-      "python3 /opt/azhpc-images/packer/scripts/validate-image.py pre-reboot --gpu-platform ${local.gpu_platform} --gpu-model ${var.gpu_model}${var.aks_host_image ? " --aks" : ""}${var.skip_validation ? " --skip" : ""}"
-    ]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-  }
+  # # --------------------------------------------------------------------------
+  # # Validation (pre-reboot)
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   inline = [
+  #     "python3 /opt/azhpc-images/packer/scripts/validate-image.py pre-reboot --gpu-platform ${local.gpu_platform} --gpu-sku ${local.gpu_sku}${var.aks_host_image ? " --aks" : ""}${var.skip_validation ? " --skip" : ""}"
+  #   ]
+  #   execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  # }
   
-  provisioner "shell" {
-    inline = [
-      "python3 /opt/azhpc-images/packer/scripts/validation-reboot.py${var.skip_validation ? " --skip" : ""}"
-    ]
-    execute_command   = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-    expect_disconnect = true
-  }
+  # provisioner "shell" {
+  #   inline = [
+  #     "python3 /opt/azhpc-images/packer/scripts/validation-reboot.py${var.skip_validation ? " --skip" : ""}"
+  #   ]
+  #   execute_command   = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  #   expect_disconnect = true
+  # }
   
-  # --------------------------------------------------------------------------
-  # Validation (post-reboot)
-  # --------------------------------------------------------------------------
-  provisioner "shell" {
-    pause_before = "900s"
-    max_retries  = 10
-    inline = [
-      "python3 /opt/azhpc-images/packer/scripts/validate-image.py post-reboot --gpu-platform ${local.gpu_platform} --gpu-model ${var.gpu_model}${var.aks_host_image ? " --aks" : ""}${var.skip_validation ? " --skip" : ""}"
-    ]
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
-  }
+  # # --------------------------------------------------------------------------
+  # # Validation (post-reboot)
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   pause_before = "900s"
+  #   max_retries  = 10
+  #   inline = [
+  #     "python3 /opt/azhpc-images/packer/scripts/validate-image.py post-reboot --gpu-platform ${local.gpu_platform} --gpu-sku ${local.gpu_sku}${var.aks_host_image ? " --aks" : ""}${var.skip_validation ? " --skip" : ""}"
+  #   ]
+  #   execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  # }
   
-  # --------------------------------------------------------------------------
-  # Build summary
-  # --------------------------------------------------------------------------
-  provisioner "shell" {
-    inline = [
-      "echo '=========================================='",
-      "echo 'HPC Image Build Complete'",
-      "echo '=========================================='",
-      "echo 'Image: ${local.image_name}'",
-      "echo 'OS: ${var.os_family} ${var.os_version}'",
-      "echo 'GPU: ${var.gpu_vendor} ${var.gpu_model}'",
-      "echo ''",
-      "cat /opt/packer/azhpc-build-info.txt 2>/dev/null || true",
-      "echo ''",
-      "echo 'Installed Components:'",
-      "cat /opt/azurehpc/component_versions.txt 2>/dev/null || true",
-      "echo '=========================================='",
-    ]
-  }
+  # # --------------------------------------------------------------------------
+  # # Build summary
+  # # --------------------------------------------------------------------------
+  # provisioner "shell" {
+  #   inline = [
+  #     "echo '=========================================='",
+  #     "echo 'HPC Image Build Complete'",
+  #     "echo '=========================================='",
+  #     "echo 'Image: ${local.image_name}'",
+  #     "echo 'OS: ${var.os_family} ${var.distro_version}'",
+  #     "echo 'GPU: ${local.gpu_platform} ${local.gpu_sku}'",
+  #     "echo ''",
+  #     "cat /opt/packer/azhpc-build-info.txt 2>/dev/null || true",
+  #     "echo ''",
+  #     "echo 'Installed Components:'",
+  #     "cat /opt/azurehpc/component_versions.txt 2>/dev/null || true",
+  #     "echo '=========================================='",
+  #   ]
+  # }
 
   # --------------------------------------------------------------------------
   # Deprovision: Prepare VM for image capture
   # --------------------------------------------------------------------------
   provisioner "shell" {
-    execute_command = "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'"
-    skip_clean      = true
-    inline = [
-      "echo '=========================================='",
-      "echo 'Deprovisioning VM for image capture'",
-      "echo '=========================================='",
-      # Uninstall OMS Agent if present
-      "wget -q https://raw.githubusercontent.com/microsoft/OMS-Agent-for-Linux/master/installer/scripts/uninstall.sh -O /tmp/oms_uninstall.sh 2>/dev/null || true",
-      "chmod +x /tmp/oms_uninstall.sh 2>/dev/null || true",
-      "/tmp/oms_uninstall.sh 2>/dev/null || true",
-      "rm -f /tmp/oms_uninstall.sh",
-      # Disable root account
-      "usermod root -p '!!'",
-      # Clear sudoers.d
-      "rm -rf /etc/sudoers.d/*",
-      # Delete /1 folder if it exists
-      "rm -rf /1 2>/dev/null || true",
-      # Touch utmp file
-      "touch /var/run/utmp",
-      # Clear command history
-      "export HISTSIZE=0",
-      # Run waagent deprovision
-      "/usr/sbin/waagent -force -deprovision+user && sync",
-      "echo 'Deprovision complete'"
+    name           = "Clear history and deprovision"
+    # skip_clean      = true  # TODO: uncomment once we migrate back epilog
+    inline_shebang = "/bin/bash -e"
+    inline = local.skip_create_artifacts ? [
+      "echo 'Skipping clear history and deprovision (skip_create_artifacts=true)'"
+    ] : [
+      "cd /opt/azhpc-images/utils",
+      "sudo ./clear_history.sh"
     ]
-    inline_shebang = "/bin/sh -x"
+  }
+
+  provisioner "shell" {
+    name           = "Clear history and deprovision (temporary epilog)"
+    skip_clean     = true
+    inline_shebang = "/bin/bash -e"
+    inline = local.skip_create_artifacts ? [
+      "echo 'Skipping deprovision epilog (skip_create_artifacts=true)'"
+    ] : [
+      "cd /opt/azhpc-images/utils",
+      "sudo ./clear_history_epilog.sh"
+    ]
+  }
+
+  provisioner "shell-local" {
+    # forcing an error exit prevents the VM from being deleted by Packer (and is currently the only way to do this)
+    # This has the slight side effect of always "failing" the build, but since build-only + always retain is for debugging purposes only, this is an acceptable tradeoff
+    inline = [
+      "if [ ${local.retain_vm_always} = true ] && [ ${local.skip_create_artifacts} = true ]; then exit 1; fi"
+    ]
   }
   
+  error-cleanup-provisioner "shell-local" {
+    inline = [
+      "if [ ${local.retain_vm_on_fail} = true ] || [ ${local.retain_vm_always} = true ] || [ ${local.externally_managed_resource_group} = true ]; then exit 0; else az group delete --name ${local.azure_resource_group} --yes; fi"
+    ]
+  }
+
   # --------------------------------------------------------------------------
   # Post-processor: Generate build manifest
   # --------------------------------------------------------------------------
   post-processor "manifest" {
-    output     = "build-manifest-${local.timestamp}.json"
+    output     = "build-manifest-${local.numeric_timestamp}.json"
     strip_path = true
     custom_data = {
       os_family  = var.os_family
-      os_version = var.os_version
-      gpu_vendor = var.gpu_vendor
-      gpu_model  = var.gpu_model
+      distro_version = var.distro_version
+      gpu_platform = local.gpu_platform
+      gpu_sku  = local.gpu_sku
       image_name = local.image_name
     }
   }

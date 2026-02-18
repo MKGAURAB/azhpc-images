@@ -51,11 +51,10 @@ def build_image(args, git):
         'packer', 'build',
         '-on-error=abort' if args.hold_on_error else '-on-error=cleanup',
         f'-var=build_id={build_id}',
+        f'-var=image_version={args.image_version}',
         f'-var=os_family={args.os}',
-        f'-var=os_version={args.version}',
-        f'-var=gpu_vendor={args.gpu}',
-        f'-var=gpu_model={args.model}',
-        f'-var=azure_resource_group={args.resource_group}',
+        f'-var=distro_version={args.version}',
+        f'-var=vhd_resource_group_name={args.vhd_resource_group_name}',
         f'-var=azure_location={args.location}',
         f'-var=skip_validation={str(args.skip_validation).lower()}',
         f'-var=azhpc_commit={git["commit"]}',
@@ -74,12 +73,10 @@ def build_image(args, git):
         packer_args.append(f'-var=vhd_storage_account={args.storage_account}')
     if args.publish_to_sig:
         packer_args.append('-var=publish_to_sig=true')
-        packer_args.append(f'-var=sig_resource_group={args.sig_resource_group}')
+        packer_args.append(f'-var=sig_resource_group_name={args.sig_resource_group_name}')
         packer_args.append(f'-var=sig_gallery_name={args.sig_gallery_name}')
         if args.sig_image_name:
             packer_args.append(f'-var=sig_image_name={args.sig_image_name}')
-        if args.sig_image_version:
-            packer_args.append(f'-var=sig_image_version={args.sig_image_version}')
         # Convert comma-separated regions to HCL list format
         regions = [r.strip() for r in args.sig_replication_regions.split(',')]
         regions_hcl = json.dumps(regions)
@@ -125,16 +122,12 @@ def main():
                         help='OS family')
     parser.add_argument('-v', '--version', default='22.04',
                         help='OS version (e.g., 22.04, 24.04, 8.10, 9.7, 3.0)')
-    parser.add_argument('-g', '--gpu', required=True, choices=['nvidia', 'amd'],
-                        help='GPU vendor (required)')
-    parser.add_argument('-m', '--model', required=True,
-                        help='GPU model (e.g., a100, h100, v100, gb200, mi300x)')
     parser.add_argument('--aks-host', action='store_true',
                         help='Build AKS host image (uses install_aks.sh)')
     parser.add_argument('--gb200-partuuid', default='None',
                         help='Disk PARTUUID for GB200 builds (required for GB200 non-AKS)')
-    parser.add_argument('--rg', '--resource-group', dest='resource_group', default='hpc-images-rg',
-                        help='Azure resource group')
+    parser.add_argument('--vhd-resource-group-name', default='hpc-images-rg',
+                        help='Resource group containing the VHD storage account')
     parser.add_argument('--location', default='westus2',
                         help='Azure location')
     parser.add_argument('--skip-validation', action='store_true',
@@ -148,13 +141,13 @@ def main():
     # Shared Image Gallery options
     parser.add_argument('--publish-to-sig', action='store_true',
                         help='Publish image to Shared Image Gallery')
-    parser.add_argument('--sig-resource-group', default='hpc-images-rg',
+    parser.add_argument('--sig-resource-group-name', default='hpc-images-rg',
                         help='Resource group containing the SIG')
     parser.add_argument('--sig-gallery-name', default='AzHPCImageReleaseCandidates',
                         help='Name of the Shared Image Gallery')
     parser.add_argument('--sig-image-name', default='',
                         help='Image definition name (auto-generated if empty)')
-    parser.add_argument('--sig-image-version', default='',
+    parser.add_argument('--image-version', default='',
                         help='Image version (auto-generated if empty)')
     parser.add_argument('--sig-replication-regions', default='westus2',
                         help='Comma-separated list of replication regions')
@@ -180,8 +173,7 @@ def main():
     
     header("HPC Image Builder")
     info("OS:", f"{args.os} {args.version}")
-    info("GPU:", f"{C.MAGENTA}{args.gpu} {args.model}{C.RESET}")
-    info("Resource Group:", args.resource_group)
+    info("VHD Resource Group:", args.vhd_resource_group_name)
     info("azhpc-images:", f"{git['branch']} @ {C.YELLOW}{git['commit_short']}{C.RESET}")
     if args.mdatp_path:
         info("MDATP:", f"{C.GREEN}Found{C.RESET}")
