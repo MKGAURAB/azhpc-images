@@ -1,0 +1,12 @@
+{
+    "windows_2025": {
+        "common": {
+            "components": ["check_nvidia_driver", "check_nvlink", "check_nvidia_driver_package", "check_component_versions"]
+        }
+    },
+    "windows_2022": {
+        "common": {
+            "components": ["check_nvidia_driver", "check_nvlink", "check_nvidia_driver_package", "check_component_versions"]
+        }
+    }
+}

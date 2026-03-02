@@ -283,6 +283,22 @@
         }
     },
     "nvidia": {
+        "windows_2025": {
+            "x86_64": {
+                "driver": {
+                    "version": "582.16",
+                    "url": "https://us.download.nvidia.com/tesla/582.16/582.16-data-center-tesla-desktop-winserver-2022-2025-dch-international.exe"
+                }
+            }
+        },
+        "windows_2022": {
+            "x86_64": {
+                "driver": {
+                    "version": "582.16",
+                    "url": "https://us.download.nvidia.com/tesla/582.16/582.16-data-center-tesla-desktop-winserver-2022-2025-dch-international.exe"
+                }
+            }
+        },
         "ubuntu22.04": {
             "x86_64": {
                 "driver": {
